@@ -63,6 +63,14 @@
   }
   .item > div { overflow: hidden; display: grid; grid-template-columns: 34px minmax(0, 1fr); column-gap: 14px; align-items: start; }
   .item.gone { grid-template-rows: 0fr; opacity: 0; padding: 0; }
+  /* 꾹 눌러서 옮기기 */
+  .item { position: relative; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+  .list.sorting .item { transition: transform .25s var(--ease); }
+  .list.sorting .item.lifted {
+    z-index: 5; transition: none; border-radius: 18px; background: var(--sheet);
+    box-shadow: 0 0 0 12px var(--sheet), 0 24px 50px rgba(0,0,0,.7);
+  }
+  .item.settle { transition: transform .3s var(--ease), box-shadow .3s ease, background .3s ease !important; }
   .item.fresh { animation: pop .7s var(--spring); }
   @keyframes pop { from { opacity: 0; transform: translateY(-14px) scale(.96); filter: blur(6px); } }
 
@@ -194,8 +202,10 @@
     $("days").innerHTML = DAYS.map((d, i) =>
       `<button class="day ${i === sel ? "on" : ""} ${i === todayIdx() ? "today" : ""}" data-i="${i}" type="button">${d}</button>`).join("");
   }
+  const sortKey = it => typeof it.order === "number" ? it.order : it.createdAt;
+  const dayList = () => [...items.entries()].filter(([, it]) => it.day === sel).sort((a, b) => sortKey(a[1]) - sortKey(b[1]));
   function renderList() {
-    const list = [...items.entries()].filter(([, it]) => it.day === sel).sort((a, b) => a[1].createdAt - b[1].createdAt);
+    const list = dayList();
     $("list").innerHTML = list.length
       ? list.map(([id, it]) => `<article class="item ${isDone(it) ? "done" : ""} ${id === freshId ? "fresh" : ""}" data-id="${esc(id)}"><div>
           <button class="check" type="button" role="checkbox" aria-checked="${isDone(it)}" aria-label="${esc(it.name)}">${checkSvg}</button>
@@ -242,7 +252,79 @@
 
   /* 동그라미 누르면 체크, 글 누르면 지우기 버튼, 두 번 누르면 삭제 */
   const resetDel = x => { x.classList.remove("open"); const d = x.querySelector(".del"); d.classList.remove("sure"); d.textContent = "지우기"; };
+  /* 꾹 눌러서 위치 옮기기 */
+  const HOLD = 380;
+  let press = null, drag = null, suppressClick = false;
+  const list = $("list");
+  list.addEventListener("pointerdown", e => {
+    if (e.button !== 0 || drag) return;
+    const el = e.target.closest(".item");
+    if (!el || e.target.closest(".del")) return;
+    press = { el, x: e.clientX, y: e.clientY, pid: e.pointerId, timer: setTimeout(() => startDrag(), HOLD) };
+  });
+  function cancelPress() { if (press) { clearTimeout(press.timer); press = null; } }
+  function startDrag() {
+    if (!press) return;
+    const { el, y, pid } = press; press = null;
+    const els = [...list.querySelectorAll(".item")];
+    if (els.length < 2) return;
+    const from = els.indexOf(el);
+    drag = { el, els, from, to: from, startY: y, h: el.offsetHeight,
+             mids: els.map(x => { const r = x.getBoundingClientRect(); return r.top + r.height / 2; }) };
+    try { el.setPointerCapture(pid); } catch (_) {}
+    list.classList.add("sorting"); el.classList.add("lifted");
+    el.style.transform = "scale(1.03)";
+    document.querySelectorAll(".item.open").forEach(resetDel);
+    if (navigator.vibrate) try { navigator.vibrate(12); } catch (_) {}
+  }
+  window.addEventListener("pointermove", e => {
+    if (press && !drag) {
+      if (Math.hypot(e.clientX - press.x, e.clientY - press.y) > 8) cancelPress();
+      return;
+    }
+    if (!drag) return;
+    e.preventDefault();
+    const dy = e.clientY - drag.startY, d = drag;
+    d.el.style.transform = `translateY(${dy}px) scale(1.03)`;
+    const center = d.mids[d.from] + dy;
+    let to = 0;
+    d.mids.forEach((m, i) => { if (i !== d.from && m < center) to++; });
+    d.to = to;
+    d.els.forEach((x, i) => {
+      if (i === d.from) return;
+      let s = 0;
+      if (d.from < to && i > d.from && i <= to) s = -d.h;
+      else if (to < d.from && i >= to && i < d.from) s = d.h;
+      x.style.transform = s ? `translateY(${s}px)` : "";
+    });
+  }, { passive: false });
+  // 옮기는 동안 화면이 같이 스크롤되지 않게
+  document.addEventListener("touchmove", e => { if (drag) e.preventDefault(); }, { passive: false });
+  function endDrag() {
+    cancelPress();
+    if (!drag) return;
+    const d = drag; drag = null; suppressClick = true;
+    setTimeout(() => { suppressClick = false; }, 50);
+    const shift = (d.to - d.from) * d.h;
+    d.el.classList.add("settle");
+    d.el.style.transform = `translateY(${shift}px)`;
+    setTimeout(() => {
+      const ids = dayList().map(([id]) => id);
+      const [moved] = ids.splice(d.from, 1); ids.splice(d.to, 0, moved);
+      ids.forEach((id, i) => {
+        const it = items.get(id);
+        if (it && it.order !== i) { const data = { ...it, order: i }; items.set(id, data); write(id, data); }
+      });
+      list.classList.remove("sorting");
+      renderList();
+    }, 300);
+  }
+  window.addEventListener("pointerup", endDrag);
+  window.addEventListener("pointercancel", endDrag);
+  list.addEventListener("contextmenu", e => { if (e.target.closest(".item")) e.preventDefault(); });
+
   $("list").onclick = e => {
+    if (suppressClick) { suppressClick = false; return; }
     const el = e.target.closest(".item"); if (!el) return;
     const id = el.dataset.id, it = items.get(id); if (!it) return;
     if (e.target.closest(".check")) {
@@ -276,9 +358,10 @@
       snap.docs.forEach(d => {
         const v = d.data();
         if (v && typeof v.name === "string" && v.day >= 0 && v.day <= 4)
-          next.set(d.id, { day: +v.day, name: v.name, doneWeek: String(v.doneWeek || ""), createdAt: +v.createdAt || 0 });
+          next.set(d.id, { day: +v.day, name: v.name, doneWeek: String(v.doneWeek || ""), createdAt: +v.createdAt || 0,
+                           ...(typeof v.order === "number" ? { order: v.order } : {}) });
       });
-      items = next; renderList();
+      items = next; if (!drag) renderList();
     }, () => {});
   }
   loadLocal(); render();
