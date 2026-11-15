@@ -2,210 +2,286 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-title" content="복싱 루틴">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
 </head>
 <body>
 <title>복싱 주간 루틴</title>
-<meta name="claude:viewport-fit-sides" content="cover">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
-/* Layout: black page, day row, one input, one checklist. Nothing else. */
-:root{
-  --bg:#000;
-  --fg:#F2F2F2;
-  --soft:#8A8A8A;
-  --faint:#4A4A4A;
-  --line:#1E1E1E;
-  --accent:#3182F6;
-  /* Toss look: Toss Product Sans where installed, then Pretendard / Apple SD Gothic Neo, Noto Sans KR on Windows */
-  --body:"Toss Product Sans","Pretendard","Pretendard Variable",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;
-  color-scheme:dark;
-}
-*,*::before,*::after{box-sizing:border-box}
-html,body{background:var(--bg);touch-action:pan-y;-webkit-text-size-adjust:100%;text-size-adjust:100%}
-body{color:var(--fg);font-family:var(--body);letter-spacing:-.02em;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
-button,input{font-family:inherit;letter-spacing:inherit;touch-action:manipulation}
-.wrap{max-width:520px;margin:0 auto;padding-block:32px 80px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:20px}
+  /* 기억 앱과 같은 틀: 요일 알약 탭, 큰 글씨 목록, 오른쪽 아래 흰 + 버튼, 아래에서 올라오는 시트 */
+  :root {
+    --bg: #000;
+    --ink: #f4f4f2;
+    --soft: #8c8c8c;
+    --faint: #3a3a3a;
+    --sheet: #1a1a1a;
+    --spring: cubic-bezier(.34, 1.4, .5, 1);
+    --ease: cubic-bezier(.22, 1, .36, 1);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { background: var(--bg); color: var(--ink); min-height: 100%; }
+  html { touch-action: pan-x pan-y; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+  body { touch-action: pan-x pan-y; }
+  body {
+    font-family: "Toss Product Sans", "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    letter-spacing: -0.02em;
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input { font: inherit; color: inherit; background: none; border: 0; outline: none; }
+  button { cursor: pointer; }
+  button:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+  input:focus-visible { outline: none; }
 
-.days{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
-.day{height:42px;border:0;border-radius:12px;background:transparent;color:var(--soft);font:600 16px/1 var(--body);cursor:pointer;position:relative}
-.day:hover{color:var(--fg)}
-.day[aria-selected="true"]{background:var(--fg);color:var(--bg)}
-.day.today::after{content:"";position:absolute;left:50%;bottom:5px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:currentColor}
+  .wrap { max-width: 720px; margin: 0 auto; padding: 28px 22px 140px; }
 
-.fab{position:fixed;z-index:5;right:max(20px,calc(env(safe-area-inset-right,0px) + 20px));bottom:calc(24px + env(safe-area-inset-bottom,0px));width:56px;height:56px;padding:0;border:0;border-radius:50%;background:var(--accent);color:#fff;cursor:pointer;display:grid;place-items:center;box-shadow:0 8px 24px -6px rgba(49,130,246,.55);transition:transform .12s,filter .15s}
-.fab svg{width:24px;height:24px}
-.fab:hover{filter:brightness(1.1)}
-.fab:active{transform:scale(.92)}
+  /* 요일 */
+  .days { display: flex; gap: 6px; margin: 0 -6px 30px; }
+  .day {
+    flex: 1; font-size: 19px; font-weight: 600; padding: 10px 0; border-radius: 999px;
+    color: var(--soft); position: relative;
+    transition: background .35s var(--ease), color .35s var(--ease), transform .25s var(--spring);
+  }
+  .day:active { transform: scale(.93); }
+  .day.on { background: var(--ink); color: #000; font-weight: 700; }
+  .day.today::after {
+    content: ""; position: absolute; left: 50%; bottom: 3px; width: 4px; height: 4px; margin-left: -2px;
+    border-radius: 50%; background: currentColor; opacity: .6;
+  }
 
-.dim{position:fixed;inset:0;z-index:10;background:rgba(0,0,0,.65);display:flex;align-items:flex-start;justify-content:center;padding:max(80px,18vh) max(16px,env(safe-area-inset-right,0px)) 16px max(16px,env(safe-area-inset-left,0px));animation:fade .15s ease}
-.pop{width:100%;max-width:400px;padding:24px 20px 16px;border-radius:20px;background:#1B1B1F;display:flex;flex-direction:column;gap:16px;animation:rise .2s cubic-bezier(.2,.9,.3,1.1)}
-@keyframes fade{from{opacity:0}}
-@keyframes rise{from{opacity:0;transform:translateY(12px) scale(.98)}}
-.pop-title{margin:0;font:700 20px/1.3 var(--body)}
-.pop input{width:100%;height:52px;padding:0 16px;border:0;border-radius:12px;background:#2A2A30;color:var(--fg);font:500 17px/1 var(--body);outline:none}
-.pop input::placeholder{color:#6B6B73}
-.pop input:focus{box-shadow:0 0 0 2px var(--accent)}
-.pop-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.pop-btns button{height:52px;border:0;border-radius:12px;font:600 16px/1 var(--body);cursor:pointer}
-.cancel{background:#2A2A30;color:#C8C8CE}
-.ok{background:var(--accent);color:#fff}
-.ok:active,.cancel:active{filter:brightness(.9)}
+  /* 목록 */
+  .list { transition: opacity .2s ease, transform .3s var(--ease); }
+  .list.swap { opacity: 0; transform: translateY(8px); }
+  .item {
+    padding: 12px 0 14px;
+    display: grid; grid-template-rows: 1fr;
+    transition: grid-template-rows .4s var(--ease), opacity .3s ease, padding .4s var(--ease);
+  }
+  .item > div { overflow: hidden; display: grid; grid-template-columns: 34px minmax(0, 1fr); column-gap: 14px; align-items: start; }
+  .item.gone { grid-template-rows: 0fr; opacity: 0; padding: 0; }
+  .item.fresh { animation: pop .7s var(--spring); }
+  @keyframes pop { from { opacity: 0; transform: translateY(-14px) scale(.96); filter: blur(6px); } }
 
-ul{list-style:none;margin:0;padding:0}
-.item{display:grid;grid-template-columns:24px minmax(0,1fr) 28px;align-items:center;gap:12px;min-height:50px;border-bottom:1px solid var(--line);cursor:pointer}
-.check{width:22px;height:22px;padding:0;border:2px solid var(--faint);border-radius:50%;background:transparent;cursor:pointer;display:grid;place-items:center;transition:background .15s,border-color .15s}
-.check svg{width:12px;height:12px;opacity:0}
-.item.done .check{background:var(--accent);border-color:var(--accent)}
-.item.done .check svg{opacity:1}
-.name{font:500 17px/1.4 var(--body);overflow-wrap:anywhere}
-.item.done .name{color:var(--faint);text-decoration:line-through}
-.del{width:28px;height:28px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--faint);cursor:pointer;display:grid;place-items:center;opacity:0}
-.del svg{width:11px;height:11px}
-.item:hover .del,.del:focus-visible{opacity:1}
-.del:hover{color:var(--fg)}
-@media (hover:none){.del{opacity:1}}
-.empty{margin:4px 0 0;font-size:14px;color:var(--faint)}
+  .check {
+    width: 34px; height: 34px; margin-top: 3px; border-radius: 50%;
+    border: 2.5px solid var(--faint); display: grid; place-items: center;
+    transition: background .25s var(--ease), border-color .25s var(--ease), transform .3s var(--spring);
+  }
+  .check:active { transform: scale(.88); }
+  .check svg { width: 17px; height: 17px; opacity: 0; transform: scale(.5); transition: opacity .2s, transform .35s var(--spring); }
+  .item.done .check { background: var(--ink); border-color: var(--ink); }
+  .item.done .check svg { opacity: 1; transform: none; }
 
-:focus-visible{outline:1.5px solid var(--fg);outline-offset:2px}
-.pop input:focus-visible{outline:none}
-.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  .text {
+    font-size: 29px; font-weight: 700; line-height: 1.35; letter-spacing: -0.03em;
+    word-break: keep-all; overflow-wrap: anywhere; cursor: default;
+    transition: color .3s ease;
+  }
+  .item.done .text { color: var(--faint); text-decoration: line-through; text-decoration-thickness: 2px; }
+  .del {
+    grid-column: 2; justify-self: start;
+    display: block; font-size: 15px; line-height: 1; color: var(--soft);
+    height: 0; margin-top: 0; padding: 0 12px; overflow: hidden;
+    border-radius: 999px; background: var(--sheet);
+    opacity: 0; pointer-events: none;
+    transition: height .3s var(--ease), margin .3s var(--ease), padding .3s var(--ease), opacity .25s ease, background .2s, color .2s;
+  }
+  .item.open .del { height: 30px; margin-top: 8px; padding: 7px 12px; opacity: 1; pointer-events: auto; }
+  .del.sure { background: #3a1414; color: #ffb4b4; }
+
+  .empty { padding: 70px 0; text-align: center; color: var(--faint); font-size: 22px; line-height: 1.7; }
+
+  /* 플러스 버튼 */
+  .fab {
+    position: fixed; right: max(22px, calc(50vw - 338px)); bottom: calc(26px + env(safe-area-inset-bottom, 0px));
+    width: 66px; height: 66px; border-radius: 50%;
+    background: var(--ink); color: #000; z-index: 20;
+    display: grid; place-items: center;
+    box-shadow: 0 10px 40px rgba(255,255,255,.12);
+    transition: transform .45s var(--spring), opacity .25s ease;
+  }
+  .fab:active { transform: scale(.9); }
+  .fab svg { width: 28px; height: 28px; transition: transform .45s var(--spring); }
+  body.writing .fab svg { transform: rotate(135deg); }
+
+  /* 입력 시트 */
+  .dim {
+    position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 10;
+    opacity: 0; pointer-events: none; transition: opacity .35s ease;
+    backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+  }
+  .sheet {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 15;
+    max-width: 720px; margin: 0 auto;
+    background: var(--sheet); border-radius: 28px 28px 0 0;
+    padding: 26px 22px calc(110px + env(safe-area-inset-bottom, 0px));
+    transform: translateY(105%); transition: transform .5s var(--ease);
+  }
+  body.writing .dim { opacity: 1; pointer-events: auto; }
+  body.writing .sheet { transform: none; transition-timing-function: var(--spring); }
+  .sheet .for { font-size: 16px; font-weight: 600; color: var(--soft); margin-bottom: 10px; }
+  .sheet input { display: block; width: 100%; font-size: 26px; font-weight: 600; line-height: 1.5; padding: 4px 0 40px; }
+  ::placeholder { color: #555; }
+  .save {
+    position: absolute; left: 22px; bottom: calc(26px + env(safe-area-inset-bottom, 0px));
+    height: 66px; padding: 0 30px; border-radius: 999px; font-size: 20px; font-weight: 700;
+    background: #2c2c2c; color: var(--soft);
+    transition: background .25s, color .25s, transform .3s var(--spring);
+  }
+  .save.ready { background: var(--ink); color: #000; }
+  .save:active { transform: scale(.94); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition-duration: .01ms !important; }
+  }
 </style>
 
-<div class="wrap">
-  <div class="days" id="days" role="tablist" aria-label="요일"></div>
-  <ul id="list"></ul>
-  <p class="empty" id="empty" hidden>아래 + 버튼을 눌러 운동을 추가하세요</p>
-</div>
+<main class="wrap">
+  <nav class="days" id="days" aria-label="요일"></nav>
+  <section class="list" id="list"></section>
+</main>
 
-<button class="fab" id="fab" type="button" aria-label="운동 추가"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M10 4v12M4 10h12"/></svg></button>
+<div class="dim" id="dim"></div>
+<form class="sheet" id="sheet" aria-hidden="true" autocomplete="off">
+  <p class="for" id="for">월요일</p>
+  <input id="text" maxlength="80" placeholder="추가할 운동을 적어줘" enterkeyhint="done" aria-label="추가할 운동">
+  <button class="save" id="save" type="submit">추가</button>
+</form>
 
-<div class="dim" id="dim" hidden>
-  <form class="pop" id="addForm" autocomplete="off" role="dialog" aria-modal="true" aria-labelledby="popTitle">
-    <p class="pop-title" id="popTitle">월요일에 추가</p>
-    <label class="sr" for="newItem">추가할 운동</label>
-    <input id="newItem" maxlength="80" placeholder="예: 샌드백 5라운드" enterkeyhint="done">
-    <div class="pop-btns">
-      <button class="cancel" id="cancel" type="button">취소</button>
-      <button class="ok" type="submit">추가</button>
-    </div>
-  </form>
-</div>
+<button class="fab" id="fab" type="button" aria-label="운동 추가">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+</button>
 
 <script>
 (() => {
-  const $ = id => document.getElementById(id);
-  const DAYS = ['월','화','수','목','금'];
-  const todayIdx = () => (new Date().getDay() + 6) % 7;   // 5,6 = 주말 (버튼 없음)
+  /* 확대 막기 (아이폰 사파리는 viewport 설정을 무시해서 따로 막음) */
+  ["gesturestart", "gesturechange", "gestureend"].forEach(t =>
+    document.addEventListener(t, e => e.preventDefault(), { passive: false }));
+  document.addEventListener("touchmove", e => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+  document.addEventListener("wheel", e => { if (e.ctrlKey) e.preventDefault(); }, { passive: false });
 
-  // 확대 막기: 핀치, 더블탭, 입력창 포커스 확대
-  (() => {
-    const v = document.querySelector('meta[name="viewport"]');
-    const c = 'width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover';
-    try { if (v) v.setAttribute('content', c); else { const m = document.createElement('meta'); m.name = 'viewport'; m.content = c; document.head.append(m) } } catch(e){}
-    ['gesturestart','gesturechange','gestureend'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive: false }));
-    document.addEventListener('touchmove', e => { if (e.touches && e.touches.length > 1) e.preventDefault() }, { passive: false });
-    let lastTouch = 0;
-    document.addEventListener('touchend', e => { const n = Date.now(); if (n - lastTouch < 300 && !e.target.closest('input')) e.preventDefault(); lastTouch = n }, { passive: false });
-    document.addEventListener('wheel', e => { if (e.ctrlKey) e.preventDefault() }, { passive: false });
-    document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && ['+','-','=','0'].includes(e.key)) e.preventDefault() });
-  })();
-  // checks reset each Monday
-  function weekKey(d = new Date()){
+  const $ = id => document.getElementById(id);
+  const DAYS = ["월", "화", "수", "목", "금"];
+  const todayIdx = () => (new Date().getDay() + 6) % 7;      // 5,6 = 주말
+  // 체크는 매주 월요일에 새로 시작
+  function weekKey(d = new Date()) {
     const m = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7));
-    return `${m.getFullYear()}-${String(m.getMonth()+1).padStart(2,'0')}-${String(m.getDate()).padStart(2,'0')}`;
+    return `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, "0")}-${String(m.getDate()).padStart(2, "0")}`;
   }
-  let items = new Map(), col = null, sel = todayIdx() > 4 ? 0 : todayIdx();
+  let items = new Map(), col = null, sel = todayIdx() > 4 ? 0 : todayIdx(), freshId = null;
   const isDone = it => it.doneWeek === weekKey();
 
-  const LS = 'boxing-routine:v1';
-  const loadLocal = () => { try { const r = localStorage.getItem(LS); if (r) items = new Map(Object.entries(JSON.parse(r))) } catch(e){} };
-  const saveLocal = () => { if (col) return; try { localStorage.setItem(LS, JSON.stringify(Object.fromEntries(items))) } catch(e){} };
-  const newId = () => col ? col.doc().id : (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2));
-  async function write(id, data){
-    if (!col) { saveLocal(); return }
+  /* 저장: Claude에서는 클라우드, 그 밖에서는 이 기기 */
+  const LS = "boxing-routine:v1";
+  const loadLocal = () => { try { const r = localStorage.getItem(LS); if (r) items = new Map(Object.entries(JSON.parse(r))); } catch (e) {} };
+  const saveLocal = () => { if (col) return; try { localStorage.setItem(LS, JSON.stringify(Object.fromEntries(items))); } catch (e) {} };
+  const newId = () => col ? col.doc().id : Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  async function write(id, data) {
+    if (!col) { saveLocal(); return; }
     const ref = col.doc(id), go = () => data ? ref.set(data) : ref.delete();
-    try { await go() } catch(e){ await new Promise(r => setTimeout(r, 600)); try { await go() } catch(_){} }
+    try { await go(); } catch (e) { await new Promise(r => setTimeout(r, 600)); try { await go(); } catch (_) {} }
   }
 
-  const checkSvg = '<svg viewBox="0 0 14 14" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.4 5.6 10.3 11.5 3.8"/></svg>';
-  const delSvg = '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2l8 8M10 2 2 10"/></svg>';
+  /* 화면 */
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const checkSvg = '<svg viewBox="0 0 14 14" fill="none" stroke="#000" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.4 5.6 10.3 11.5 3.8"/></svg>';
 
-  const dayBtns = DAYS.map((d, i) => {
-    const b = document.createElement('button');
-    b.type = 'button'; b.className = 'day'; b.textContent = d; b.setAttribute('role','tab');
-    b.addEventListener('click', () => { sel = i; render(); });
-    $('days').append(b); return b;
-  });
-
-  function render(){
-    dayBtns.forEach((b, i) => { b.setAttribute('aria-selected', String(i === sel)); b.classList.toggle('today', i === todayIdx()) });
-    const list = [...items.entries()].filter(([,it]) => it.day === sel).sort((a,b) => a[1].createdAt - b[1].createdAt);
-    $('list').replaceChildren(...list.map(([id, it]) => {
-      const li = document.createElement('li'), done = isDone(it);
-      li.className = 'item' + (done ? ' done' : ''); li.dataset.id = id;
-      const cb = document.createElement('button');
-      cb.type = 'button'; cb.className = 'check'; cb.setAttribute('role','checkbox');
-      cb.setAttribute('aria-checked', String(done)); cb.setAttribute('aria-label', it.name); cb.innerHTML = checkSvg;
-      const nm = document.createElement('span'); nm.className = 'name'; nm.textContent = it.name;
-      const del = document.createElement('button');
-      del.type = 'button'; del.className = 'del'; del.setAttribute('aria-label', it.name + ' 지우기'); del.innerHTML = delSvg;
-      li.append(cb, nm, del); return li;
-    }));
-    $('empty').hidden = list.length > 0;
+  function renderDays() {
+    $("days").innerHTML = DAYS.map((d, i) =>
+      `<button class="day ${i === sel ? "on" : ""} ${i === todayIdx() ? "today" : ""}" data-i="${i}" type="button">${d}</button>`).join("");
   }
+  function renderList() {
+    const list = [...items.entries()].filter(([, it]) => it.day === sel).sort((a, b) => a[1].createdAt - b[1].createdAt);
+    $("list").innerHTML = list.length
+      ? list.map(([id, it]) => `<article class="item ${isDone(it) ? "done" : ""} ${id === freshId ? "fresh" : ""}" data-id="${esc(id)}"><div>
+          <button class="check" type="button" role="checkbox" aria-checked="${isDone(it)}" aria-label="${esc(it.name)}">${checkSvg}</button>
+          <p class="text">${esc(it.name)}</p>
+          <button class="del" type="button">지우기</button>
+        </div></article>`).join("")
+      : `<div class="empty">${DAYS[sel]}요일은 아직 비어 있어<br>아래 + 를 눌러 적어봐</div>`;
+    freshId = null;
+  }
+  function render() { renderDays(); renderList(); }
 
-  $('addForm').addEventListener('submit', e => {
+  $("days").onclick = e => {
+    const b = e.target.closest(".day"); if (!b) return;
+    const i = +b.dataset.i; if (i === sel) return;
+    sel = i; renderDays();
+    const l = $("list"); l.classList.add("swap");
+    setTimeout(() => { renderList(); l.classList.remove("swap"); }, 180);
+  };
+
+  /* 시트 */
+  const open = () => {
+    $("for").textContent = DAYS[sel] + "요일";
+    document.body.classList.add("writing"); $("sheet").setAttribute("aria-hidden", "false");
+    setTimeout(() => $("text").focus(), 120);
+  };
+  const close = () => {
+    document.body.classList.remove("writing"); $("sheet").setAttribute("aria-hidden", "true");
+    if (document.activeElement) document.activeElement.blur();
+  };
+  $("fab").onclick = () => document.body.classList.contains("writing") ? close() : open();
+  $("dim").onclick = close;
+  document.addEventListener("keydown", e => { if (e.key === "Escape") close(); });
+  $("text").oninput = () => $("save").classList.toggle("ready", !!$("text").value.trim());
+
+  $("sheet").onsubmit = e => {
     e.preventDefault();
-    const inp = $('newItem'), name = inp.value.trim().replace(/\s+/g,' ');
-    if (!name) { inp.focus(); return }
-    const id = newId(), data = { day: sel, name: name.slice(0,80), doneWeek: '', createdAt: Date.now() };
-    items.set(id, data); render(); write(id, data);
-    closePop();
-  });
-  function openPop(){
-    $('popTitle').textContent = DAYS[sel] + '요일에 추가';
-    $('newItem').value = '';
-    $('dim').hidden = false;
-    $('newItem').focus();
-  }
-  function closePop(){ $('newItem').blur(); $('dim').hidden = true; $('fab').focus({ preventScroll: true }) }
-  $('fab').addEventListener('click', openPop);
-  $('cancel').addEventListener('click', closePop);
-  $('dim').addEventListener('click', e => { if (e.target === $('dim')) closePop() });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('dim').hidden) closePop() });
-  $('list').addEventListener('click', e => {
-    const li = e.target.closest('.item'); if (!li) return;
-    const id = li.dataset.id, it = items.get(id); if (!it) return;
-    if (e.target.closest('.del')) { items.delete(id); render(); write(id, null); return }
-    const data = { ...it, doneWeek: isDone(it) ? '' : weekKey() };
-    items.set(id, data); render(); write(id, data);
-  });
-  setInterval(render, 60000);
+    const name = $("text").value.trim().replace(/\s+/g, " "); if (!name) { $("text").focus(); return; }
+    const id = newId(), data = { day: sel, name: name.slice(0, 80), doneWeek: "", createdAt: Date.now() };
+    items.set(id, data); freshId = id; write(id, data);
+    $("text").value = ""; $("save").classList.remove("ready");
+    close();
+    setTimeout(renderList, 220);
+  };
 
-  async function connect(){
+  /* 동그라미 누르면 체크, 글 누르면 지우기 버튼, 두 번 누르면 삭제 */
+  const resetDel = x => { x.classList.remove("open"); const d = x.querySelector(".del"); d.classList.remove("sure"); d.textContent = "지우기"; };
+  $("list").onclick = e => {
+    const el = e.target.closest(".item"); if (!el) return;
+    const id = el.dataset.id, it = items.get(id); if (!it) return;
+    if (e.target.closest(".check")) {
+      const data = { ...it, doneWeek: isDone(it) ? "" : weekKey() };
+      items.set(id, data); write(id, data);
+      el.classList.toggle("done", isDone(data));
+      el.querySelector(".check").setAttribute("aria-checked", String(isDone(data)));
+      return;
+    }
+    const del = e.target.closest(".del");
+    if (del) {
+      if (!del.classList.contains("sure")) { del.classList.add("sure"); del.textContent = "정말 지울까?"; return; }
+      el.classList.add("gone"); items.delete(id); write(id, null);
+      setTimeout(renderList, 420);
+      return;
+    }
+    document.querySelectorAll(".item.open").forEach(x => { if (x !== el) resetDel(x); });
+    if (el.classList.contains("open")) resetDel(el); else el.classList.add("open");
+  };
+
+  setInterval(() => { if (!document.body.classList.contains("writing")) renderDays(); }, 60000);
+
+  async function connect() {
     const c = window.claude;
     let db = null;
-    if (c && c.use) { try { db = await c.use('db') } catch(e){} }
-    if (!db) { loadLocal(); render(); return }
-    col = db.collection('routine');
+    if (c && c.use) { try { db = await c.use("db"); } catch (e) {} }
+    if (!db) { loadLocal(); render(); return; }
+    col = db.collection("routine");
     col.onSnapshot(snap => {
       const next = new Map();
       snap.docs.forEach(d => {
         const v = d.data();
-        if (v && typeof v.name === 'string' && v.day >= 0 && v.day <= 4)
-          next.set(d.id, { day: +v.day, name: v.name, doneWeek: String(v.doneWeek || ''), createdAt: +v.createdAt || 0 });
+        if (v && typeof v.name === "string" && v.day >= 0 && v.day <= 4)
+          next.set(d.id, { day: +v.day, name: v.name, doneWeek: String(v.doneWeek || ""), createdAt: +v.createdAt || 0 });
       });
-      items = next; render();
+      items = next; renderList();
     }, () => {});
   }
-  render();
+  loadLocal(); render();
   connect();
 })();
 </script>
