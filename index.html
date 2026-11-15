@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>복싱 주간 루틴</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: black page, day row, one input, one checklist. Nothing else. */
+:root{
+  --bg:#000;
+  --fg:#F2F2F2;
+  --soft:#8A8A8A;
+  --faint:#4A4A4A;
+  --line:#1E1E1E;
+  --accent:#3182F6;
+  /* Toss look: Toss Product Sans where installed, then Pretendard / Apple SD Gothic Neo, Noto Sans KR on Windows */
+  --body:"Toss Product Sans","Pretendard","Pretendard Variable",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{background:var(--bg);touch-action:pan-y;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{color:var(--fg);font-family:var(--body);letter-spacing:-.02em;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+button,input{font-family:inherit;letter-spacing:inherit;touch-action:manipulation}
+.wrap{max-width:520px;margin:0 auto;padding-block:32px 80px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:20px}
+
+.days{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
+.day{height:42px;border:0;border-radius:12px;background:transparent;color:var(--soft);font:600 16px/1 var(--body);cursor:pointer;position:relative}
+.day:hover{color:var(--fg)}
+.day[aria-selected="true"]{background:var(--fg);color:var(--bg)}
+.day.today::after{content:"";position:absolute;left:50%;bottom:5px;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:currentColor}
+
+form{display:flex;align-items:center;gap:10px}
+.plus{flex:none;width:44px;height:44px;padding:0;border:0;border-radius:50%;background:var(--accent);color:#fff;cursor:pointer;display:grid;place-items:center;transition:transform .1s,filter .15s}
+.plus svg{width:20px;height:20px}
+.plus:hover{filter:brightness(1.1)}
+.plus:active{transform:scale(.92)}
+input{flex:1;min-width:0;height:46px;padding:0 2px;border:0;border-bottom:1px solid var(--faint);background:transparent;color:var(--fg);font:400 17px/1 var(--body);outline:none}
+input::placeholder{color:var(--faint)}
+input:focus{border-bottom-color:var(--fg)}
+
+ul{list-style:none;margin:0;padding:0}
+.item{display:grid;grid-template-columns:24px minmax(0,1fr) 28px;align-items:center;gap:12px;min-height:50px;border-bottom:1px solid var(--line);cursor:pointer}
+.check{width:22px;height:22px;padding:0;border:2px solid var(--faint);border-radius:50%;background:transparent;cursor:pointer;display:grid;place-items:center;transition:background .15s,border-color .15s}
+.check svg{width:12px;height:12px;opacity:0}
+.item.done .check{background:var(--accent);border-color:var(--accent)}
+.item.done .check svg{opacity:1}
+.name{font:500 17px/1.4 var(--body);overflow-wrap:anywhere}
+.item.done .name{color:var(--faint);text-decoration:line-through}
+.del{width:28px;height:28px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--faint);cursor:pointer;display:grid;place-items:center;opacity:0}
+.del svg{width:11px;height:11px}
+.item:hover .del,.del:focus-visible{opacity:1}
+.del:hover{color:var(--fg)}
+@media (hover:none){.del{opacity:1}}
+.empty{margin:4px 0 0;font-size:14px;color:var(--faint)}
+
+:focus-visible{outline:1.5px solid var(--fg);outline-offset:2px}
+input:focus-visible{outline:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style>
+
+<div class="wrap">
+  <div class="days" id="days" role="tablist" aria-label="요일"></div>
+  <form id="addForm" autocomplete="off">
+    <label class="sr" for="newItem">추가할 항목</label>
+    <input id="newItem" maxlength="80" placeholder="추가할 운동" enterkeyhint="done">
+    <button class="plus" type="submit" aria-label="추가"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M10 4v12M4 10h12"/></svg></button>
+  </form>
+  <ul id="list"></ul>
+  <p class="empty" id="empty" hidden>비어 있어요</p>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const DAYS = ['월','화','수','목','금'];
+  const todayIdx = () => (new Date().getDay() + 6) % 7;   // 5,6 = 주말 (버튼 없음)
+
+  // 확대 막기: 핀치, 더블탭, 입력창 포커스 확대
+  (() => {
+    const v = document.querySelector('meta[name="viewport"]');
+    const c = 'width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover';
+    try { if (v) v.setAttribute('content', c); else { const m = document.createElement('meta'); m.name = 'viewport'; m.content = c; document.head.append(m) } } catch(e){}
+    ['gesturestart','gesturechange','gestureend'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive: false }));
+    document.addEventListener('touchmove', e => { if (e.touches && e.touches.length > 1) e.preventDefault() }, { passive: false });
+    let lastTouch = 0;
+    document.addEventListener('touchend', e => { const n = Date.now(); if (n - lastTouch < 300 && !e.target.closest('input')) e.preventDefault(); lastTouch = n }, { passive: false });
+    document.addEventListener('wheel', e => { if (e.ctrlKey) e.preventDefault() }, { passive: false });
+    document.addEventListener('keydown', e => { if ((e.ctrlKey || e.metaKey) && ['+','-','=','0'].includes(e.key)) e.preventDefault() });
+  })();
+  // checks reset each Monday
+  function weekKey(d = new Date()){
+    const m = new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7));
+    return `${m.getFullYear()}-${String(m.getMonth()+1).padStart(2,'0')}-${String(m.getDate()).padStart(2,'0')}`;
+  }
+  let items = new Map(), col = null, sel = todayIdx() > 4 ? 0 : todayIdx();
+  const isDone = it => it.doneWeek === weekKey();
+
+  const LS = 'boxing-routine:v1';
+  const loadLocal = () => { try { const r = localStorage.getItem(LS); if (r) items = new Map(Object.entries(JSON.parse(r))) } catch(e){} };
+  const saveLocal = () => { if (col) return; try { localStorage.setItem(LS, JSON.stringify(Object.fromEntries(items))) } catch(e){} };
+  const newId = () => col ? col.doc().id : (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2));
+  async function write(id, data){
+    if (!col) { saveLocal(); return }
+    const ref = col.doc(id), go = () => data ? ref.set(data) : ref.delete();
+    try { await go() } catch(e){ await new Promise(r => setTimeout(r, 600)); try { await go() } catch(_){} }
+  }
+
+  const checkSvg = '<svg viewBox="0 0 14 14" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.4 5.6 10.3 11.5 3.8"/></svg>';
+  const delSvg = '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 2l8 8M10 2 2 10"/></svg>';
+
+  const dayBtns = DAYS.map((d, i) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'day'; b.textContent = d; b.setAttribute('role','tab');
+    b.addEventListener('click', () => { sel = i; render(); });
+    $('days').append(b); return b;
+  });
+
+  function render(){
+    dayBtns.forEach((b, i) => { b.setAttribute('aria-selected', String(i === sel)); b.classList.toggle('today', i === todayIdx()) });
+    const list = [...items.entries()].filter(([,it]) => it.day === sel).sort((a,b) => a[1].createdAt - b[1].createdAt);
+    $('list').replaceChildren(...list.map(([id, it]) => {
+      const li = document.createElement('li'), done = isDone(it);
+      li.className = 'item' + (done ? ' done' : ''); li.dataset.id = id;
+      const cb = document.createElement('button');
+      cb.type = 'button'; cb.className = 'check'; cb.setAttribute('role','checkbox');
+      cb.setAttribute('aria-checked', String(done)); cb.setAttribute('aria-label', it.name); cb.innerHTML = checkSvg;
+      const nm = document.createElement('span'); nm.className = 'name'; nm.textContent = it.name;
+      const del = document.createElement('button');
+      del.type = 'button'; del.className = 'del'; del.setAttribute('aria-label', it.name + ' 지우기'); del.innerHTML = delSvg;
+      li.append(cb, nm, del); return li;
+    }));
+    $('empty').hidden = list.length > 0;
+  }
+
+  $('addForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const inp = $('newItem'), name = inp.value.trim().replace(/\s+/g,' ');
+    if (!name) return;
+    const id = newId(), data = { day: sel, name: name.slice(0,80), doneWeek: '', createdAt: Date.now() };
+    items.set(id, data); render(); write(id, data);
+    inp.value = ''; inp.focus();
+  });
+  $('list').addEventListener('click', e => {
+    const li = e.target.closest('.item'); if (!li) return;
+    const id = li.dataset.id, it = items.get(id); if (!it) return;
+    if (e.target.closest('.del')) { items.delete(id); render(); write(id, null); return }
+    const data = { ...it, doneWeek: isDone(it) ? '' : weekKey() };
+    items.set(id, data); render(); write(id, data);
+  });
+  setInterval(render, 60000);
+
+  async function connect(){
+    const c = window.claude;
+    let db = null;
+    if (c && c.use) { try { db = await c.use('db') } catch(e){} }
+    if (!db) { loadLocal(); render(); return }
+    col = db.collection('routine');
+    col.onSnapshot(snap => {
+      const next = new Map();
+      snap.docs.forEach(d => {
+        const v = d.data();
+        if (v && typeof v.name === 'string' && v.day >= 0 && v.day <= 4)
+          next.set(d.id, { day: +v.day, name: v.name, doneWeek: String(v.doneWeek || ''), createdAt: +v.createdAt || 0 });
+      });
+      items = next; render();
+    }, () => {});
+  }
+  render();
+  connect();
+})();
+</script>
+
+</body>
+</html>
