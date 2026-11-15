@@ -90,16 +90,46 @@
     transition: color .3s ease;
   }
   .item.done .text { color: var(--faint); text-decoration: line-through; text-decoration-thickness: 2px; }
-  .del {
-    grid-column: 2; justify-self: start;
-    display: block; font-size: 15px; line-height: 1; color: var(--soft);
-    height: 0; margin-top: 0; padding: 0 12px; overflow: hidden;
-    border-radius: 999px; background: var(--sheet);
-    opacity: 0; pointer-events: none;
-    transition: height .3s var(--ease), margin .3s var(--ease), padding .3s var(--ease), opacity .25s ease, background .2s, color .2s;
+  .acts {
+    grid-column: 2; display: flex; gap: 8px;
+    height: 0; margin-top: 0; overflow: hidden; opacity: 0; pointer-events: none;
+    transition: height .3s var(--ease), margin .3s var(--ease), opacity .25s ease;
   }
-  .item.open .del { height: 30px; margin-top: 8px; padding: 7px 12px; opacity: 1; pointer-events: auto; }
+  .item.open .acts { height: 30px; margin-top: 8px; opacity: 1; pointer-events: auto; }
+  .acts button {
+    height: 30px; padding: 0 12px; font-size: 15px; line-height: 1; color: var(--soft);
+    border-radius: 999px; background: var(--sheet); transition: background .2s, color .2s, transform .25s var(--spring);
+  }
+  .acts button:active { transform: scale(.94); }
   .del.sure { background: #3a1414; color: #ffb4b4; }
+
+  .tail { padding: 26px 0 0 48px; }
+  .tail button { font-size: 15px; color: var(--soft); text-decoration: underline; text-underline-offset: 4px; }
+
+  /* 복사 시트 */
+  .pick { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 0; }
+  .pick button {
+    flex: 1 1 0; min-width: 56px; font-size: 19px; font-weight: 600; padding: 12px 0; border-radius: 999px;
+    background: #2a2a2a; color: var(--soft);
+    transition: background .25s var(--ease), color .25s var(--ease), transform .25s var(--spring);
+  }
+  .pick button:active { transform: scale(.93); }
+  .pick button.on { background: var(--ink); color: #000; font-weight: 700; }
+  .pick .all { flex-basis: 100%; font-size: 16px; padding: 11px 0; }
+  .copy-title { font-size: 24px; font-weight: 700; line-height: 1.4; letter-spacing: -0.03em; margin-bottom: 14px; word-break: keep-all; overflow-wrap: anywhere; }
+  body.copying .dim { opacity: 1; pointer-events: auto; }
+  body.copying #copySheet { transform: none; transition-timing-function: var(--spring); }
+  body.copying .fab { opacity: 0; pointer-events: none; }
+
+  /* 알림 */
+  .toast {
+    position: fixed; left: 50%; top: calc(18px + env(safe-area-inset-top, 0px)); z-index: 30;
+    max-width: calc(100% - 32px); padding: 13px 20px; border-radius: 999px;
+    background: #262626; color: var(--ink); font-size: 15px; font-weight: 600; text-align: center;
+    transform: translate(-50%, -140%); opacity: 0;
+    transition: transform .5s var(--spring), opacity .3s ease;
+  }
+  .toast.show { transform: translate(-50%, 0); opacity: 1; }
 
   .empty { padding: 70px 0; text-align: center; color: var(--faint); font-size: 22px; line-height: 1.7; }
 
@@ -130,7 +160,7 @@
     transform: translateY(105%); transition: transform .5s var(--ease);
   }
   body.writing .dim { opacity: 1; pointer-events: auto; }
-  body.writing .sheet { transform: none; transition-timing-function: var(--spring); }
+  body.writing #sheet { transform: none; transition-timing-function: var(--spring); }
   .sheet .for { font-size: 16px; font-weight: 600; color: var(--soft); margin-bottom: 10px; }
   .sheet input { display: block; width: 100%; font-size: 26px; font-weight: 600; line-height: 1.5; padding: 4px 0 40px; }
   ::placeholder { color: #555; }
@@ -159,6 +189,15 @@
   <input id="text" maxlength="80" placeholder="추가할 운동을 적어줘" enterkeyhint="done" aria-label="추가할 운동">
   <button class="save" id="save" type="submit">추가</button>
 </form>
+
+<form class="sheet" id="copySheet" aria-hidden="true">
+  <p class="for">어느 요일에 복사할까?</p>
+  <p class="copy-title" id="copyTitle"></p>
+  <div class="pick" id="pick"></div>
+  <button class="save" id="copyGo" type="submit">복사</button>
+</form>
+
+<div class="toast" id="toast" role="status"></div>
 
 <button class="fab" id="fab" type="button" aria-label="운동 추가">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -210,8 +249,8 @@
       ? list.map(([id, it]) => `<article class="item ${isDone(it) ? "done" : ""} ${id === freshId ? "fresh" : ""}" data-id="${esc(id)}"><div>
           <button class="check" type="button" role="checkbox" aria-checked="${isDone(it)}" aria-label="${esc(it.name)}">${checkSvg}</button>
           <p class="text">${esc(it.name)}</p>
-          <button class="del" type="button">지우기</button>
-        </div></article>`).join("")
+          <div class="acts"><button class="copy" type="button">다른 요일에 복사</button><button class="del" type="button">지우기</button></div>
+        </div></article>`).join("") + `<div class="tail"><button id="copyAll" type="button">${DAYS[sel]}요일 전체 복사</button></div>`
       : `<div class="empty">${DAYS[sel]}요일은 아직 비어 있어<br>아래 + 를 눌러 적어봐</div>`;
     freshId = null;
   }
@@ -236,8 +275,65 @@
     if (document.activeElement) document.activeElement.blur();
   };
   $("fab").onclick = () => document.body.classList.contains("writing") ? close() : open();
-  $("dim").onclick = close;
-  document.addEventListener("keydown", e => { if (e.key === "Escape") close(); });
+  $("dim").onclick = () => { close(); closeCopy(); };
+  document.addEventListener("keydown", e => { if (e.key === "Escape") { close(); closeCopy(); } });
+
+  /* 다른 요일에 복사 (하나 또는 전체) */
+  let copySrc = [], picked = new Set();
+  function openCopy(ids) {
+    copySrc = ids; picked = new Set();
+    const names = ids.map(id => items.get(id)).filter(Boolean).map(it => it.name);
+    $("copyTitle").textContent = ids.length === 1 ? names[0] : `${DAYS[sel]}요일 전체 ${names.length}개`;
+    renderPick();
+    document.body.classList.add("copying"); $("copySheet").setAttribute("aria-hidden", "false");
+  }
+  function closeCopy() {
+    document.body.classList.remove("copying"); $("copySheet").setAttribute("aria-hidden", "true");
+  }
+  const others = () => DAYS.map((_, i) => i).filter(i => i !== sel);
+  function renderPick() {
+    const all = others().every(i => picked.has(i));
+    $("pick").innerHTML = others().map(i =>
+      `<button type="button" data-i="${i}" class="${picked.has(i) ? "on" : ""}">${DAYS[i]}</button>`).join("") +
+      `<button type="button" class="all ${all ? "on" : ""}" data-i="all">모든 요일</button>`;
+    $("copyGo").classList.toggle("ready", picked.size > 0);
+  }
+  $("pick").onclick = e => {
+    const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.i === "all") {
+      const all = others().every(i => picked.has(i));
+      picked = all ? new Set() : new Set(others());
+    } else {
+      const i = +b.dataset.i; picked.has(i) ? picked.delete(i) : picked.add(i);
+    }
+    renderPick();
+  };
+  $("copySheet").onsubmit = e => {
+    e.preventDefault();
+    if (!picked.size) return;
+    const src = copySrc.map(id => items.get(id)).filter(Boolean);
+    const days = [...picked].sort();
+    let added = 0, k = 0;
+    const now = Date.now();
+    days.forEach(day => {
+      const have = new Set([...items.values()].filter(it => it.day === day).map(it => it.name));
+      src.forEach(it => {
+        if (have.has(it.name)) return;           // 같은 이름이 이미 있으면 건너뜀
+        const id = newId(), data = { day, name: it.name, doneWeek: "", createdAt: now + k++ };
+        items.set(id, data); write(id, data); added++;
+      });
+    });
+    closeCopy();
+    document.querySelectorAll(".item.open").forEach(resetDel);
+    const where = days.map(d => DAYS[d]).join(", ") + "요일";
+    toast(added ? `${where}에 ${added}개 복사했어` : `${where}에 이미 다 있어`);
+  };
+
+  let toastT;
+  function toast(msg) {
+    const t = $("toast"); t.textContent = msg; t.classList.add("show");
+    clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2600);
+  }
   $("text").oninput = () => $("save").classList.toggle("ready", !!$("text").value.trim());
 
   $("sheet").onsubmit = e => {
@@ -259,7 +355,7 @@
   list.addEventListener("pointerdown", e => {
     if (e.button !== 0 || drag) return;
     const el = e.target.closest(".item");
-    if (!el || e.target.closest(".del")) return;
+    if (!el || e.target.closest(".acts")) return;
     press = { el, x: e.clientX, y: e.clientY, pid: e.pointerId, timer: setTimeout(() => startDrag(), HOLD) };
   });
   function cancelPress() { if (press) { clearTimeout(press.timer); press = null; } }
@@ -325,7 +421,9 @@
 
   $("list").onclick = e => {
     if (suppressClick) { suppressClick = false; return; }
+    if (e.target.closest("#copyAll")) { openCopy(dayList().map(([id]) => id)); return; }
     const el = e.target.closest(".item"); if (!el) return;
+    if (e.target.closest(".copy")) { openCopy([el.dataset.id]); return; }
     const id = el.dataset.id, it = items.get(id); if (!it) return;
     if (e.target.closest(".check")) {
       const data = { ...it, doneWeek: isDone(it) ? "" : weekKey() };
